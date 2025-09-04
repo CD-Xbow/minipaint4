@@ -1,5 +1,5 @@
 # miniPaint4 for puter
-This is my rather modest mod of miniPaint4 for use on puter.com. This was the first online graphics editor I felt I could live with. After using it for a while I had a list of enhanements. Starting with the easiest, neating up the messy filter menues, then integrating a bit with services puter offer including the Ai tools and finally I'll try to make a custom brush. I can't live without a smudge brush! First, it's off to batttle with NPM. 
+This is my rather modest mod of miniPaint4 for use on puter.com. This was the first online graphics editor I felt I could live with. After using it for a while I had a list of enhanements. Starting with the easiest, neatening up the messy filter menues, then integrating a bit with services puter offer including the Ai tools and finally I'll try to make a custom brush. I can't live without a good brush! First, it's off to batttle with NPM. 
 
 
 The following documentation is all origianl. 
