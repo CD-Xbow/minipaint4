@@ -1,0 +1,1142 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Psych Dali</title>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          "Helvetica Neue", Arial, sans-serif;
+      }
+      #container {
+        width: 100%;
+        height: 100vh;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="container"></div>
+    <script>
+      window.CALLAI_API_KEY = "sk-vibes-proxy-managed";
+      window.CALLAI_CHAT_URL = "https://vibes-diy-api.com/";
+      window.CALLAI_IMG_URL = "https://vibes-diy-api.com/";
+    </script>
+    <script type="importmap">
+      {
+        "imports": {
+          "react": "https://esm.sh/react@19.1.1/es2022/react.mjs",
+          "react-dom": "https://esm.sh/react-dom@19.1.1/es2022/react-dom.mjs",
+          "react-dom/client": "https://esm.sh/react-dom@19.1.1/es2022/client.mjs",
+          "use-fireproof": "https://esm.sh/use-fireproof@0.23.11?external=react,react-dom",
+          "call-ai": "https://esm.sh/call-ai",
+          "use-vibes": "https://esm.sh/use-vibes",
+          "three": "https://esm.sh/three"
+        }
+      }
+    </script>
+    <script type="text/babel" data-type="module">
+      import ReactDOMClient from "react-dom/client";
+
+      // prettier-ignore
+      import React, { useState, useEffect, useRef } from "react";
+import { useFireproof } from "use-fireproof";
+import { callAI, imageGen } from "call-ai";
+const App = () => {
+  const { database, useLiveQuery, useDocument } = useFireproof("hyper-extreme-color-blaster");
+  const [sampleImage, setSampleImage] = useState("https://picsum.photos/id/1015/512/512");
+  const [isImageLoading, setIsImageLoading] = useState(false);
+  const [position1, setPosition1] = useState({ x: 0.5, y: 0.5 });
+  const [position2, setPosition2] = useState({ x: 0.5, y: 0.5 });
+  const [blurAmount, setBlurAmount] = useState(0);
+  const [contrastAmount, setContrastAmount] = useState(100);
+  const [hueRotate, setHueRotate] = useState(0);
+  const [saturation, setSaturation] = useState(100);
+  const [invert, setInvert] = useState(0);
+  const [isAnimating, setIsAnimating] = useState(false);
+  const [viewMode, setViewMode] = useState("side-by-side"); // "side-by-side", "full", "compare"
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
+  const canvas1Ref = useRef(null);
+  const canvas2Ref = useRef(null);
+  const isDragging1Ref = useRef(false);
+  const isDragging2Ref = useRef(false);
+  const filterId = useRef(`filter-${Date.now()}`);
+  const animationRef = useRef(null);
+  // Even more EXTREME matrix presets - way beyond realistic
+  const cosmicFireMatrix = [3.5, -0.8, -0.5, 0, 0.3, 0.7, 2.5, -0.9, 0, 0.2, -0.8, 0.6, 2.0, 0, 0.1, 0, 0, 0, 1, 0]; // Surreal red-orange
+  const toxicLavaMatrix = [3.8, -1.2, 0.5, 0, 0.4, -0.2, 3.0, 0.6, 0, 0.3, 0.4, -0.3, 2.5, 0, 0.2, 0, 0, 0, 1, 0]; // Acid warm tones
+  const plasmaVoidMatrix = [-1.5, 2.8, -0.5, 0, 0.3, 0.7, -2.0, 2.8, 0, 0.2, 1.8, -0.7, -2.0, 0, 0.1, 0, 0, 0, 1, 0]; // Inverted reality
+  const solarFlareMatrix = [2.8, -1.3, 2.0, 0, 0.2, 1.5, 3.0, -0.8, 0, 0.1, -0.6, 0.8, 2.5, 0, 0.1, 0.1, 0.1, 0, 1, 0]; // Extreme sun explosion
+  // Matrix for color controller 2
+  const neonInfernoMatrix = [2.0, 1.5, -1.8, 0, 0.3, -1.2, 2.8, 0.4, 0, 0.2, 0.5, -0.3, 3.0, 0, 0.1, 0, 0, 0, 1, 0];
+  const glacialFireMatrix = [-2.5, 3.0, 1.0, 0, 0.2, 2.0, -1.0, 1.5, 0, 0.1, 1.0, 1.0, -2.5, 0, 0.1, 0, 0, 0, 1, 0];
+  const ultravioletMatrix = [0.5, -0.8, 2.8, 0, 0.2, -1.5, 0.2, 3.0, 0, 0.1, 2.5, -0.5, -1.0, 0, 0.1, 0, 0, 0, 1, 0];
+  const quantumHeatMatrix = [3.0, -2.0, 1.0, 0, 0.3, -1.0, 3.0, -1.0, 0, 0.2, 1.0, -1.0, 3.0, 0, 0.1, 0, 0, 0, 1, 0];
+  // Default matrix - already extreme
+  const defaultMatrix = interpolateMatrices(0.5, 0.5, 0.5, 0.5);
+  // Current saved filter
+  const { doc: currentFilter, merge, save } = useDocument({
+    name: "",
+    matrix: defaultMatrix,
+    effects: {
+      blur: blurAmount,
+      contrast: contrastAmount,
+      hueRotate: hueRotate,
+      saturate: saturation,
+      invert: invert
+    },
+    _files: {}
+  });
+  // Query all saved filters
+  const { docs: savedFilters } = useLiveQuery("name");
+  // Interpolate between the eight corner matrices based on positions from both controllers
+  function interpolateMatrices(x1, y1, x2, y2) {
+    // First interpolate between the four corners of first controller
+    const resultController1 = [];
+    for (let i = 0; i < 20; i++) {
+      const top1 = cosmicFireMatrix[i] * (1 - x1) + toxicLavaMatrix[i] * x1;
+      const bottom1 = plasmaVoidMatrix[i] * (1 - x1) + solarFlareMatrix[i] * x1;
+      resultController1[i] = top1 * (1 - y1) + bottom1 * y1;
+    }
+    // Then interpolate between the four corners of second controller
+    const resultController2 = [];
+    for (let i = 0; i < 20; i++) {
+      const top2 = neonInfernoMatrix[i] * (1 - x2) + glacialFireMatrix[i] * x2;
+      const bottom2 = ultravioletMatrix[i] * (1 - x2) + quantumHeatMatrix[i] * x2;
+      resultController2[i] = top2 * (1 - y2) + bottom2 * y2;
+    }
+    // Finally interpolate between the two controllers (50/50 mix)
+    const finalResult = [];
+    for (let i = 0; i < 20; i++) {
+      finalResult[i] = (resultController1[i] + resultController2[i]) / 2;
+    }
+    return finalResult;
+  }
+  // Update CSS filter string based on current settings
+  const getCSSFilters = () => {
+    return `blur(${blurAmount}px) contrast(${contrastAmount}%) hue-rotate(${hueRotate}deg) saturate(${saturation}%) invert(${invert}%)`;
+  };
+  // Load sample image if none exists
+  useEffect(() => {
+    // Just use the default image immediately
+    setSampleImage("https://picsum.photos/id/1015/512/512");
+  }, []);
+  // Effect for updating filter with current positions
+  useEffect(() => {
+    const matrix = interpolateMatrices(position1.x, position1.y, position2.x, position2.y);
+    merge({
+      matrix,
+      effects: {
+        blur: blurAmount,
+        contrast: contrastAmount,
+        hueRotate: hueRotate,
+        saturate: saturation,
+        invert: invert
+      }
+    });
+  }, [position1, position2, blurAmount, contrastAmount, hueRotate, saturation, invert]);
+  // Handle animation
+  useEffect(() => {
+    if (isAnimating) {
+      let time = 0;
+      const animate = () => {
+        time += 0.01;
+        // Create circular motion paths for both controllers
+        const x1 = 0.5 + 0.4 * Math.cos(time);
+        const y1 = 0.5 + 0.4 * Math.sin(time * 1.3);
+        const x2 = 0.5 + 0.4 * Math.cos(time * 1.1 + Math.PI);
+        const y2 = 0.5 + 0.4 * Math.sin(time * 0.7);
+        setPosition1({ x: x1, y: y1 });
+        setPosition2({ x: x2, y: y2 });
+        // Oscillate the effects
+        setBlurAmount(5 * Math.abs(Math.sin(time * 0.5)));
+        setContrastAmount(100 + 150 * Math.sin(time * 0.3));
+        setHueRotate((360 * time) % 360);
+        setSaturation(100 + 200 * Math.abs(Math.sin(time * 0.2)));
+        setInvert(50 * Math.abs(Math.sin(time * 0.1)));
+        animationRef.current = requestAnimationFrame(animate);
+      };
+      animationRef.current = requestAnimationFrame(animate);
+      return () => {
+        if (animationRef.current) {
+          cancelAnimationFrame(animationRef.current);
+        }
+      };
+    }
+  }, [isAnimating]);
+  // Handle image upload
+  const handleImageUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      processImageFile(file);
+    }
+  };
+  // Process the image file
+  const processImageFile = (file) => {
+    if (file && file.type.match('image.*')) {
+      setIsImageLoading(true);
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setSampleImage(event.target.result);
+        merge({ _files: { "image": file } });
+        setIsImageLoading(false);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+  // Drag and drop handlers
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    setIsDraggingOver(true);
+  };
+  const handleDragLeave = () => {
+    setIsDraggingOver(false);
+  };
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setIsDraggingOver(false);
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+      processImageFile(files[0]);
+    }
+  };
+  // Handle mouse interactions with controller 1
+  const handleMouseDown1 = (e) => {
+    isDragging1Ref.current = true;
+    updatePosition1(e);
+  };
+  const handleMouseMove1 = (e) => {
+    if (!isDragging1Ref.current) return;
+    updatePosition1(e);
+  };
+  const handleMouseUp1 = () => {
+    isDragging1Ref.current = false;
+  };
+  const handleTouchStart1 = (e) => {
+    isDragging1Ref.current = true;
+    updatePositionTouch1(e);
+  };
+  const handleTouchMove1 = (e) => {
+    if (!isDragging1Ref.current) return;
+    updatePositionTouch1(e);
+    e.preventDefault();
+  };
+  const handleTouchEnd1 = () => {
+    isDragging1Ref.current = false;
+  };
+  // Handle mouse interactions with controller 2
+  const handleMouseDown2 = (e) => {
+    isDragging2Ref.current = true;
+    updatePosition2(e);
+  };
+  const handleMouseMove2 = (e) => {
+    if (!isDragging2Ref.current) return;
+    updatePosition2(e);
+  };
+  const handleMouseUp2 = () => {
+    isDragging2Ref.current = false;
+  };
+  const handleTouchStart2 = (e) => {
+    isDragging2Ref.current = true;
+    updatePositionTouch2(e);
+  };
+  const handleTouchMove2 = (e) => {
+    if (!isDragging2Ref.current) return;
+    updatePositionTouch2(e);
+    e.preventDefault();
+  };
+  const handleTouchEnd2 = () => {
+    isDragging2Ref.current = false;
+  };
+  // Update positions
+  const updatePosition1 = (e) => {
+    const canvas = canvas1Ref.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    let x = (e.clientX - rect.left) / rect.width;
+    let y = (e.clientY - rect.top) / rect.height;
+    x = Math.max(0, Math.min(1, x));
+    y = Math.max(0, Math.min(1, y));
+    setPosition1({ x, y });
+  };
+  const updatePositionTouch1 = (e) => {
+    const canvas = canvas1Ref.current;
+    if (!canvas || !e.touches[0]) return;
+    const rect = canvas.getBoundingClientRect();
+    let x = (e.touches[0].clientX - rect.left) / rect.width;
+    let y = (e.touches[0].clientY - rect.top) / rect.height;
+    x = Math.max(0, Math.min(1, x));
+    y = Math.max(0, Math.min(1, y));
+    setPosition1({ x, y });
+  };
+  const updatePosition2 = (e) => {
+    const canvas = canvas2Ref.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    let x = (e.clientX - rect.left) / rect.width;
+    let y = (e.clientY - rect.top) / rect.height;
+    x = Math.max(0, Math.min(1, x));
+    y = Math.max(0, Math.min(1, y));
+    setPosition2({ x, y });
+  };
+  const updatePositionTouch2 = (e) => {
+    const canvas = canvas2Ref.current;
+    if (!canvas || !e.touches[0]) return;
+    const rect = canvas.getBoundingClientRect();
+    let x = (e.touches[0].clientX - rect.left) / rect.width;
+    let y = (e.touches[0].clientY - rect.top) / rect.height;
+    x = Math.max(0, Math.min(1, x));
+    y = Math.max(0, Math.min(1, y));
+    setPosition2({ x, y });
+  };
+  // Save current filter
+  const handleSaveFilter = (e) => {
+    e.preventDefault();
+    if (!currentFilter.name.trim()) {
+      alert("Please enter a name for your filter");
+      return;
+    }
+    save();
+    merge({ name: "" }); // Clear the name for next save
+  };
+  // Load a saved filter
+  const handleLoadFilter = (savedFilter) => {
+    merge({
+      matrix: [...savedFilter.matrix],
+      name: savedFilter.name
+    });
+    if (savedFilter.effects) {
+      setBlurAmount(savedFilter.effects.blur || 0);
+      setContrastAmount(savedFilter.effects.contrast || 100);
+      setHueRotate(savedFilter.effects.hueRotate || 0);
+      setSaturation(savedFilter.effects.saturate || 100);
+      setInvert(savedFilter.effects.invert || 0);
+    }
+  };
+  // Delete a saved filter
+  const handleDeleteFilter = async (id) => {
+    await database.del(id);
+  };
+  // Matrix values string for SVG filter
+  const getMatrixValuesString = () => {
+    return currentFilter.matrix?.join(" ") || defaultMatrix.join(" ");
+  };
+  // Copy SVG code to clipboard
+  const copyToClipboard = () => {
+    const svgCode = `<filter id="customFilter">
+  <feColorMatrix type="matrix" values="${getMatrixValuesString()}" />
+</filter>`;
+    navigator.clipboard.writeText(svgCode).then(() => {
+      alert("SVG code copied to clipboard!");
+    });
+  };
+  // Copy CSS code to clipboard
+  const copyCSSToClipboard = () => {
+    const cssCode = `filter: ${getCSSFilters()};`;
+    navigator.clipboard.writeText(cssCode).then(() => {
+      alert("CSS code copied to clipboard!");
+    });
+  };
+  // Generate EXTREME demo filters
+  const generateDemoFilters = async () => {
+    try {
+      const response = await callAI(
+        "Generate 5 EXTREMELY INTENSE and PSYCHEDELIC color matrix filter presets for images. These should be utterly surreal and mind-bending, like nothing seen in normal photography - think acid trip visuals or alien dimensions. Each preset should have a wild creative name (like 'Quantum Nebula Meltdown' or 'Hyperdimensional Plasma Fever') and a 20-element color matrix with extremely bold values far beyond normal photography filters. Use values ranging from -5.0 to +5.0 and mix negative and positive numbers to create the most dramatic, reality-bending, technicolor effects possible. Include additional effect values for blur (0-10), contrast (0-300), hue-rotation (0-360), saturation (0-500), and invert (0-100). Return as structured JSON only.",
+        {
+          schema: {
+            properties: {
+              filters: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    name: { type: "string" },
+                    matrix: { type: "array", items: { type: "number" } },
+                    effects: {
+                      type: "object",
+                      properties: {
+                        blur: { type: "number" },
+                        contrast: { type: "number" },
+                        hueRotate: { type: "number" },
+                        saturate: { type: "number" },
+                        invert: { type: "number" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      );
+      const filtersData = JSON.parse(response).filters;
+      for (const filterData of filtersData) {
+        await database.put(filterData);
+      }
+    } catch (error) {
+      console.error("Error generating demo filters:", error);
+      alert("Failed to generate demo filters. Please try again.");
+    }
+  };
+  // Toggle animation
+  const toggleAnimation = () => {
+    setIsAnimating(!isAnimating);
+  };
+  // Randomize filter
+  const randomizeFilter = () => {
+    setPosition1({
+      x: Math.random(),
+      y: Math.random()
+    });
+    setPosition2({
+      x: Math.random(),
+      y: Math.random()
+    });
+    setBlurAmount(Math.random() * 10);
+    setContrastAmount(100 + Math.random() * 200);
+    setHueRotate(Math.random() * 360);
+    setSaturation(100 + Math.random() * 400);
+    setInvert(Math.random() * 100);
+  };
+  // Toggle view mode
+  const toggleViewMode = () => {
+    if (viewMode === "side-by-side") setViewMode("full");
+    else if (viewMode === "full") setViewMode("compare");
+    else setViewMode("side-by-side");
+  };
+  return (
+    <div
+      className={`min-h-screen p-4 md:p-8 relative overflow-hidden bg-gradient-to-br from-[#242424] to-[#3a3a3a] ${isDraggingOver ? 'ring-8 ring-[#ff70a6] ring-opacity-70' : ''}`}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+      {/* Drop zone overlay when dragging */}
+      {isDraggingOver && (
+        <div className="absolute inset-0 bg-[#242424] bg-opacity-80 flex items-center justify-center z-50 pointer-events-none">
+          <div className="text-center p-8 rounded-xl border-4 border-dashed border-[#ff70a6] bg-[#242424] bg-opacity-80">
+            <div className="text-6xl mb-4">📷</div>
+            <div className="text-3xl font-bold text-[#ff70a6]">DROP IMAGE TO BEND REALITY</div>
+          </div>
+        </div>
+      )}
+      {/* Animated background patterns */}
+      <div className="absolute top-0 left-0 w-full h-full opacity-20 pointer-events-none overflow-hidden">
+        <div className="absolute w-[200%] h-[200%] top-[-50%] left-[-50%] animate-spin-slow" style={{ background: "radial-gradient(circle, transparent 20%, #242424 20%, #242424 80%, transparent 80%, transparent), radial-gradient(circle, transparent 20%, #242424 20%, #242424 80%, transparent 80%, transparent) 50px 50px", backgroundSize: "100px 100px", opacity: 0.3 }}></div>
+        <div className="absolute w-full h-full opacity-30" style={{ background: "repeating-linear-gradient(45deg, #ff70a6 0, #ff70a6 20px, transparent 20px, transparent 40px)", animation: "slide 20s linear infinite", transform: "translateX(-50%)" }}></div>
+        <div className="absolute w-full h-full opacity-30" style={{ background: "repeating-linear-gradient(-45deg, #ffd670 0, #ffd670 20px, transparent 20px, transparent 40px)", animation: "slide 15s linear infinite reverse", transform: "translateX(50%)" }}></div>
+      </div>
+      <div className="max-w-7xl mx-auto relative z-10">
+        <header className="text-center mb-8 relative">
+          <h1 className="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-[#ff70a6] via-[#e9ff70] to-[#70d6ff] mb-2" style={{textShadow: "0 0 15px rgba(255,114,166,0.5), 0 0 30px rgba(255,114,166,0.3)"}}>
+            PsychoDali
+          </h1>
+          <div className="flex justify-center">
+            <p className="text-lg italic mb-4 text-white max-w-3xl">
+              <em>Transform your images into mind-bending alternate realities with this psychedelic color mixer! Combine extreme color matrices with insane visual effects to create surreal artworks.</em>
+            </p>
+          </div>
+        </header>
+        {/* Preview Area - At the top - SIDE BY SIDE */}
+        <div className="mb-10 bg-[#242424] p-6 rounded-2xl border-4 border-[#70d6ff] shadow-[0_0_20px_rgba(112,214,255,0.5)] relative overflow-hidden">
+          {/* SVG filter definitions */}
+          <svg width="0" height="0" className="absolute">
+            <defs>
+              <filter id={filterId.current}>
+                <feColorMatrix type="matrix" values={getMatrixValuesString()} />
+                {blurAmount > 0 && <feGaussianBlur stdDeviation={blurAmount / 2} />}
+              </filter>
+            </defs>
+          </svg>
+          {isImageLoading ? (
+            <div className="flex flex-col items-center justify-center h-64 bg-[#333] rounded-xl border-4 border-[#ff70a6] animate-pulse">
+              <div className="w-16 h-16 border-4 border-[#ff70a6] border-t-transparent rounded-full animate-spin mb-4"></div>
+              <p className="text-white font-bold text-xl">LOADING IMAGE...</p>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-6 relative z-10">
+              {sampleImage && (
+                <>
+                  {/* Side by Side View (Default) */}
+                  {viewMode === "side-by-side" && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Filtered Image */}
+                      <div className="relative border-4 border-[#ff70a6] rounded-xl overflow-hidden shadow-xl transform hover:scale-[1.01] transition-transform duration-300">
+                        <p className="absolute top-2 left-2 z-20 text-lg font-bold px-2 py-1 bg-[#242424] text-[#ff70a6] rounded">
+                          ALTERED REALITY
+                        </p>
+                        <img
+                          src={sampleImage}
+                          alt="Filtered"
+                          style={{
+                            filter: `url(#${filterId.current}) contrast(${contrastAmount}%) hue-rotate(${hueRotate}deg) saturate(${saturation}%) invert(${invert}%)`,
+                          }}
+                          className="w-full"
+                        />
+                        {/* Animated overlay effect */}
+                        <div className="absolute inset-0 pointer-events-none z-10 opacity-20" style={{
+                          background: "linear-gradient(45deg, transparent 0%, transparent 40%, rgba(255,255,255,0.4) 45%, transparent 50%, transparent 100%)",
+                          backgroundSize: "200% 200%",
+                          animation: "shine 3s infinite"
+                        }}></div>
+                      </div>
+                      {/* Original Image */}
+                      <div className="relative border-4 border-[#e9ff70] rounded-xl overflow-hidden shadow-xl transform hover:scale-[1.01] transition-transform duration-300">
+                        <p className="absolute top-2 right-2 z-20 text-lg font-bold px-2 py-1 bg-[#242424] text-[#e9ff70] rounded">
+                          ORIGINAL REALITY
+                        </p>
+                        <img
+                          src={sampleImage}
+                          alt="Original"
+                          className="w-full"
+                        />
+                      </div>
+                    </div>
+                  )}
+                  {/* Full Filtered View */}
+                  {viewMode === "full" && (
+                    <div className="relative border-4 border-[#70d6ff] rounded-xl overflow-hidden shadow-xl">
+                      <p className="absolute top-2 left-2 z-20 text-lg font-bold px-2 py-1 bg-[#242424] text-[#ff70a6] rounded">
+                        ALTERED REALITY - FULL VIEW
+                      </p>
+                      <img
+                        src={sampleImage}
+                        alt="Filtered"
+                        style={{
+                          filter: `url(#${filterId.current}) contrast(${contrastAmount}%) hue-rotate(${hueRotate}deg) saturate(${saturation}%) invert(${invert}%)`,
+                        }}
+                        className="w-full"
+                      />
+                      {/* Animated overlay effect */}
+                      <div className="absolute inset-0 pointer-events-none z-10 opacity-20" style={{
+                        background: "linear-gradient(45deg, transparent 0%, transparent 40%, rgba(255,255,255,0.4) 45%, transparent 50%, transparent 100%)",
+                        backgroundSize: "200% 200%",
+                        animation: "shine 3s infinite"
+                      }}></div>
+                    </div>
+                  )}
+                  {/* Compare Tiles View */}
+                  {viewMode === "compare" && (
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      {/* Filtered Image */}
+                      <div className="relative border-4 border-[#ff70a6] rounded-xl overflow-hidden">
+                        <p className="absolute top-1 left-1 z-20 text-xs font-bold px-1 py-0.5 bg-[#242424] text-[#ff70a6] rounded">
+                          ALTERED
+                        </p>
+                        <img
+                          src={sampleImage}
+                          alt="Filtered"
+                          style={{
+                            filter: `url(#${filterId.current}) contrast(${contrastAmount}%) hue-rotate(${hueRotate}deg) saturate(${saturation}%) invert(${invert}%)`,
+                          }}
+                          className="w-full"
+                        />
+                      </div>
+                      {/* Original Image */}
+                      <div className="relative border-4 border-[#e9ff70] rounded-xl overflow-hidden">
+                        <p className="absolute top-1 left-1 z-20 text-xs font-bold px-1 py-0.5 bg-[#242424] text-[#e9ff70] rounded">
+                          ORIGINAL
+                        </p>
+                        <img
+                          src={sampleImage}
+                          alt="Original"
+                          className="w-full"
+                        />
+                      </div>
+                      {/* Inverted Filtered Image */}
+                      <div className="relative border-4 border-[#ffd670] rounded-xl overflow-hidden">
+                        <p className="absolute top-1 left-1 z-20 text-xs font-bold px-1 py-0.5 bg-[#242424] text-[#ffd670] rounded">
+                          INVERTED
+                        </p>
+                        <img
+                          src={sampleImage}
+                          alt="Inverted"
+                          style={{
+                            filter: `url(#${filterId.current}) contrast(${contrastAmount}%) hue-rotate(${hueRotate + 180}deg) saturate(${saturation}%) invert(${100 - invert}%)`,
+                          }}
+                          className="w-full"
+                        />
+                      </div>
+                      {/* Double Filtered Image */}
+                      <div className="relative border-4 border-[#70d6ff] rounded-xl overflow-hidden">
+                        <p className="absolute top-1 left-1 z-20 text-xs font-bold px-1 py-0.5 bg-[#242424] text-[#70d6ff] rounded">
+                          EXTREME
+                        </p>
+                        <img
+                          src={sampleImage}
+                          alt="Double Filtered"
+                          style={{
+                            filter: `url(#${filterId.current}) contrast(${contrastAmount * 1.5}%) hue-rotate(${hueRotate}deg) saturate(${saturation * 1.5}%) invert(${invert}%)`,
+                          }}
+                          className="w-full"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+          {/* Image control buttons */}
+          <div className="flex justify-center mt-6 relative z-10">
+            <label
+              htmlFor="imageUpload"
+              className="cursor-pointer px-6 py-3 bg-[#ffd670] text-[#242424] font-bold rounded-lg border-4 border-[#242424] hover:bg-[#ff9770] transition-all duration-300 transform hover:scale-105 flex items-center"
+            >
+              <span className="mr-2">📷</span> UPLOAD IMAGE
+            </label>
+            <input
+              id="imageUpload"
+              type="file"
+              accept="image/*"
+              onChange={handleImageUpload}
+              className="hidden"
+            />
+          </div>
+          <p className="text-center text-white text-sm mt-3 opacity-70">
+            Drag and drop an image anywhere on the page to use it!
+          </p>
+          {/* Background patterns */}
+          <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none overflow-hidden">
+            <div className="absolute w-full h-full" style={{ background: "radial-gradient(circle at 30% 30%, rgba(112,214,255,0.4) 0%, transparent 70%), radial-gradient(circle at 70% 70%, rgba(255,151,112,0.4) 0%, transparent 70%)" }}></div>
+            <div className="absolute w-full h-full" style={{ background: "repeating-linear-gradient(-45deg, transparent 0px, transparent 10px, rgba(255,255,255,0.03) 10px, rgba(255,255,255,0.03) 20px)" }}></div>
+          </div>
+        </div>
+        {/* Control buttons - Below preview */}
+        <div className="flex justify-center mb-8">
+          <div className="flex flex-wrap gap-3 justify-center">
+            <button
+              onClick={toggleAnimation}
+              className={`px-5 py-3 text-white font-bold rounded-full border-4 transition-all duration-300 transform hover:scale-105 ${isAnimating ? 'bg-[#ff70a6] border-[#ff9770] animate-pulse' : 'bg-[#242424] border-[#ffd670]'}`}
+            >
+              {isAnimating ? '⚡ STOP TRIP' : '🌀 START COLOR TRIP'}
+            </button>
+            <button
+              onClick={randomizeFilter}
+              className="px-5 py-3 bg-[#242424] text-white font-bold rounded-full border-4 border-[#70d6ff] transition-all duration-300 transform hover:scale-105 hover:bg-[#70d6ff] hover:text-[#242424]"
+            >
+              🎲 RANDOMIZE
+            </button>
+            <button
+              onClick={toggleViewMode}
+              className="px-5 py-3 bg-[#242424] text-white font-bold rounded-full border-4 border-[#e9ff70] transition-all duration-300 transform hover:scale-105 hover:bg-[#e9ff70] hover:text-[#242424]"
+            >
+              {viewMode === "side-by-side" ? "🔎 FULL VIEW" : viewMode === "full" ? "🔄 COMPARE VIEWS" : "↔️ SIDE BY SIDE"}
+            </button>
+          </div>
+        </div>
+        <div className="flex flex-col lg:flex-row gap-8">
+          {/* Left Column - Controls */}
+          <div className="flex-1">
+            {/* Main Controllers Row */}
+            <div className="flex flex-col md:flex-row gap-4 mb-8">
+              {/* Controller 1 */}
+              <div className="flex-1 bg-[#242424] p-4 rounded-2xl border-4 border-[#ff70a6] shadow-[0_0_20px_rgba(255,114,166,0.5)] relative overflow-hidden">
+                <h2 className="text-2xl font-bold mb-4 text-[#ff70a6]">DIMENSION X</h2>
+                {/* Controller 1 Color Space Pad */}
+                <div className="mx-auto mb-4 transform hover:scale-105 transition-transform duration-300" style={{ width: "200px", height: "200px" }}>
+                  <div
+                    ref={canvas1Ref}
+                    className="w-full h-full border-4 border-[#ff9770] rounded-xl relative select-none cursor-pointer overflow-hidden"
+                    onMouseDown={handleMouseDown1}
+                    onMouseMove={handleMouseMove1}
+                    onMouseUp={handleMouseUp1}
+                    onMouseLeave={handleMouseUp1}
+                    onTouchStart={handleTouchStart1}
+                    onTouchMove={handleTouchMove1}
+                    onTouchEnd={handleTouchEnd1}
+                    style={{
+                      background: "radial-gradient(circle at center, rgba(255,70,166,0.9) 0%, transparent 70%), radial-gradient(circle at top left, rgba(255,151,112,0.9) 0%, transparent 70%), radial-gradient(circle at top right, rgba(255,214,112,0.9) 0%, transparent 70%), radial-gradient(circle at bottom left, rgba(112,214,255,0.9) 0%, transparent 70%), radial-gradient(circle at bottom right, rgba(233,255,112,0.9) 0%, transparent 70%)",
+                      boxShadow: "inset 0 0 30px rgba(255,255,255,0.3)"
+                    }}
+                  >
+                    {/* Controller 1 corner labels */}
+                    <div className="absolute top-1 left-1 font-bold text-white bg-[#ff70a6] p-1 rounded text-xs border-2 border-[#242424] z-10">
+                      Cosmic Fire
+                    </div>
+                    <div className="absolute top-1 right-1 font-bold text-white bg-[#ffd670] p-1 rounded text-xs border-2 border-[#242424] z-10">
+                      Toxic Lava
+                    </div>
+                    <div className="absolute bottom-1 left-1 font-bold text-white bg-[#70d6ff] p-1 rounded text-xs border-2 border-[#242424] z-10">
+                      Plasma Void
+                    </div>
+                    <div className="absolute bottom-1 right-1 font-bold text-white bg-[#e9ff70] p-1 rounded text-xs border-2 border-[#242424] z-10">
+                      Solar Flare
+                    </div>
+                    {/* Controller 1 position marker */}
+                    <div
+                      className="absolute w-8 h-8 rounded-full bg-[#ff70a6] transform -translate-x-1/2 -translate-y-1/2 shadow-[0_0_15px_rgba(255,114,166,0.8)] z-20 flex items-center justify-center border-4 border-white animate-pulse"
+                      style={{
+                        left: `${position1.x * 100}%`,
+                        top: `${position1.y * 100}%`
+                      }}
+                    >
+                      <div className="w-2 h-2 bg-white rounded-full"></div>
+                    </div>
+                    {/* Dynamic grid lines */}
+                    <div className="absolute inset-0" style={{
+                      backgroundImage: "linear-gradient(to right, rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.1) 1px, transparent 1px)",
+                      backgroundSize: "20px 20px",
+                      opacity: 0.5
+                    }}></div>
+                  </div>
+                </div>
+              </div>
+              {/* Controller 2 */}
+              <div className="flex-1 bg-[#242424] p-4 rounded-2xl border-4 border-[#70d6ff] shadow-[0_0_20px_rgba(112,214,255,0.5)] relative overflow-hidden">
+                <h2 className="text-2xl font-bold mb-4 text-[#70d6ff]">DIMENSION Y</h2>
+                {/* Controller 2 Color Space Pad */}
+                <div className="mx-auto mb-4 transform hover:scale-105 transition-transform duration-300" style={{ width: "200px", height: "200px" }}>
+                  <div
+                    ref={canvas2Ref}
+                    className="w-full h-full border-4 border-[#e9ff70] rounded-xl relative select-none cursor-pointer overflow-hidden"
+                    onMouseDown={handleMouseDown2}
+                    onMouseMove={handleMouseMove2}
+                    onMouseUp={handleMouseUp2}
+                    onMouseLeave={handleMouseUp2}
+                    onTouchStart={handleTouchStart2}
+                    onTouchMove={handleTouchMove2}
+                    onTouchEnd={handleTouchEnd2}
+                    style={{
+                      background: "conic-gradient(from 0deg, rgba(255,151,112,0.9), rgba(233,255,112,0.9), rgba(112,214,255,0.9), rgba(255,70,166,0.9), rgba(255,151,112,0.9))",
+                      boxShadow: "inset 0 0 30px rgba(255,255,255,0.3)"
+                    }}
+                  >
+                    {/* Controller 2 corner labels */}
+                    <div className="absolute top-1 left-1 font-bold text-white bg-[#ff9770] p-1 rounded text-xs border-2 border-[#242424] z-10">
+                      Neon Inferno
+                    </div>
+                    <div className="absolute top-1 right-1 font-bold text-white bg-[#e9ff70] p-1 rounded text-xs border-2 border-[#242424] z-10">
+                      Glacial Fire
+                    </div>
+                    <div className="absolute bottom-1 left-1 font-bold text-white bg-[#70d6ff] p-1 rounded text-xs border-2 border-[#242424] z-10">
+                      Ultraviolet
+                    </div>
+                    <div className="absolute bottom-1 right-1 font-bold text-white bg-[#ff70a6] p-1 rounded text-xs border-2 border-[#242424] z-10">
+                      Quantum Heat
+                    </div>
+                    {/* Controller 2 position marker */}
+                    <div
+                      className="absolute w-8 h-8 rounded-full bg-[#70d6ff] transform -translate-x-1/2 -translate-y-1/2 shadow-[0_0_15px_rgba(112,214,255,0.8)] z-20 flex items-center justify-center border-4 border-white animate-pulse"
+                      style={{
+                        left: `${position2.x * 100}%`,
+                        top: `${position2.y * 100}%`
+                      }}
+                    >
+                      <div className="w-2 h-2 bg-white rounded-full"></div>
+                    </div>
+                    {/* Dynamic rays */}
+                    <div className="absolute inset-0 animate-spin-slow" style={{
+                      background: "repeating-conic-gradient(from 0deg, transparent 0deg 10deg, rgba(255,255,255,0.1) 10deg 20deg)",
+                      opacity: 0.7
+                    }}></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            {/* CSS Effect Controls */}
+            <div className="bg-[#242424] p-6 rounded-2xl border-4 border-[#ffd670] shadow-[0_0_20px_rgba(255,214,112,0.5)] mb-8 relative overflow-hidden">
+              <h2 className="text-2xl font-bold mb-6 text-[#ffd670]">REALITY DISTORTION CONTROLS</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 relative z-10">
+                {/* Blur Control */}
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="text-white font-medium">BLUR: {blurAmount.toFixed(1)}px</label>
+                    <span className="px-2 py-1 bg-[#ff70a6] text-white text-xs rounded-full">{blurAmount > 5 ? "EXTREME" : blurAmount > 2 ? "HIGH" : "LOW"}</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="15"
+                    step="0.1"
+                    value={blurAmount}
+                    onChange={(e) => setBlurAmount(parseFloat(e.target.value))}
+                    className="w-full h-3 bg-[#333] rounded-lg appearance-none cursor-pointer"
+                    style={{
+                      background: `linear-gradient(to right, #ff70a6 0%, #ff70a6 ${(blurAmount/15)*100}%, #333 ${(blurAmount/15)*100}%, #333 100%)`
+                    }}
+                  />
+                </div>
+                {/* Contrast Control */}
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="text-white font-medium">CONTRAST: {contrastAmount}%</label>
+                    <span className="px-2 py-1 bg-[#ff9770] text-white text-xs rounded-full">{contrastAmount > 200 ? "INSANE" : contrastAmount > 150 ? "EXTREME" : "NORMAL"}</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="300"
+                    step="1"
+                    value={contrastAmount}
+                    onChange={(e) => setContrastAmount(parseInt(e.target.value))}
+                    className="w-full h-3 bg-[#333] rounded-lg appearance-none cursor-pointer"
+                    style={{
+                      background: `linear-gradient(to right, #ff9770 0%, #ff9770 ${(contrastAmount/300)*100}%, #333 ${(contrastAmount/300)*100}%, #333 100%)`
+                    }}
+                  />
+                </div>
+                {/* Hue Rotate Control */}
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="text-white font-medium">HUE ROTATE: {hueRotate}°</label>
+                    <span className="px-2 py-1 bg-[#ffd670] text-white text-xs rounded-full">{Math.floor(hueRotate/36)*36 === 0 ? "NORMAL" : `${Math.floor(hueRotate/36)*36}° SHIFT`}</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="360"
+                    step="1"
+                    value={hueRotate}
+                    onChange={(e) => setHueRotate(parseInt(e.target.value))}
+                    className="w-full h-3 bg-[#333] rounded-lg appearance-none cursor-pointer"
+                    style={{
+                      background: `linear-gradient(to right, hsl(${0}, 100%, 60%), hsl(${60}, 100%, 60%), hsl(${120}, 100%, 60%), hsl(${180}, 100%, 60%), hsl(${240}, 100%, 60%), hsl(${300}, 100%, 60%), hsl(${360}, 100%, 60%))`
+                    }}
+                  />
+                </div>
+                {/* Saturation Control */}
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="text-white font-medium">SATURATION: {saturation}%</label>
+                    <span className="px-2 py-1 bg-[#e9ff70] text-black text-xs rounded-full">{saturation > 300 ? "PSYCHEDELIC" : saturation > 200 ? "EXTREME" : "NORMAL"}</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="500"
+                    step="1"
+                    value={saturation}
+                    onChange={(e) => setSaturation(parseInt(e.target.value))}
+                    className="w-full h-3 bg-[#333] rounded-lg appearance-none cursor-pointer"
+                    style={{
+                      background: `linear-gradient(to right, #777 0%, #e9ff70 50%, #e9ff70 ${(saturation/500)*100}%, #333 ${(saturation/500)*100}%, #333 100%)`
+                    }}
+                  />
+                </div>
+                {/* Invert Control */}
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="text-white font-medium">INVERT: {invert}%</label>
+                    <span className="px-2 py-1 bg-[#70d6ff] text-white text-xs rounded-full">{invert > 75 ? "NEGATIVE" : invert > 25 ? "PARTIAL" : "NONE"}</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    step="1"
+                    value={invert}
+                    onChange={(e) => setInvert(parseInt(e.target.value))}
+                    className="w-full h-3 bg-[#333] rounded-lg appearance-none cursor-pointer"
+                    style={{
+                      background: `linear-gradient(to right, #70d6ff 0%, #70d6ff ${invert}%, #333 ${invert}%, #333 100%)`
+                    }}
+                  />
+                </div>
+              </div>
+              {/* Copy buttons */}
+              <div className="flex gap-4 mt-6">
+                <button
+                  onClick={copyToClipboard}
+                  className="flex-1 px-4 py-2 bg-[#ffd670] text-[#242424] font-bold rounded-lg border-4 border-[#242424] hover:bg-[#ff9770] hover:text-white transition-all duration-300 transform hover:scale-105"
+                >
+                  Copy SVG Matrix
+                </button>
+                <button
+                  onClick={copyCSSToClipboard}
+                  className="flex-1 px-4 py-2 bg-[#70d6ff] text-[#242424] font-bold rounded-lg border-4 border-[#242424] hover:bg-[#e9ff70] hover:text-[#242424] transition-all duration-300 transform hover:scale-105"
+                >
+                  Copy CSS Filters
+                </button>
+              </div>
+              {/* Saving section */}
+              <div className="flex items-end mt-6 gap-2">
+                <div className="flex-1">
+                  <label className="block text-white font-medium mb-1" htmlFor="filterName">
+                    SAVE YOUR REALITY
+                  </label>
+                  <input
+                    id="filterName"
+                    type="text"
+                    value={currentFilter.name || ""}
+                    onChange={(e) => merge({ name: e.target.value })}
+                    placeholder="Enter filter name"
+                    className="w-full border-2 border-[#ffd670] bg-[#333] text-white rounded-lg p-2"
+                  />
+                </div>
+                <button
+                  onClick={handleSaveFilter}
+                  className="px-4 py-2 bg-[#ff9770] text-white font-bold rounded-lg border-4 border-[#242424] hover:bg-[#ff70a6] transition-all duration-300 transform hover:scale-105"
+                >
+                  SAVE
+                </button>
+              </div>
+              {/* Background patterns */}
+              <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none overflow-hidden">
+                <div className="absolute w-full h-full" style={{ background: "radial-gradient(circle at 50% 50%, rgba(255,255,255,0.1) 0%, transparent 60%)" }}></div>
+                <div className="absolute w-full h-full" style={{ background: "linear-gradient(45deg, transparent 0%, transparent 25%, rgba(255,255,255,0.05) 25%, rgba(255,255,255,0.05) 50%, transparent 50%, transparent 75%, rgba(255,255,255,0.05) 75%, rgba(255,255,255,0.05) 100%)", backgroundSize: "20px 20px" }}></div>
+              </div>
+            </div>
+            {/* Saved Filters Section */}
+            <div className="bg-[#242424] p-6 rounded-2xl border-4 border-[#e9ff70] shadow-[0_0_20px_rgba(233,255,112,0.5)] relative overflow-hidden">
+              <div className="flex justify-between items-center mb-4 relative z-10">
+                <h2 className="text-2xl font-bold text-[#e9ff70]">SAVED REALITIES</h2>
+                <button
+                  onClick={generateDemoFilters}
+                  className="px-4 py-2 bg-[#ffd670] text-[#242424] font-bold rounded-lg border-4 border-[#242424] hover:bg-[#ff9770] hover:text-white transition-all duration-300 transform hover:scale-105"
+                >
+                  GENERATE PSYCHEDELIC PRESETS
+                </button>
+              </div>
+              {savedFilters.length === 0 ? (
+                <p className="text-center text-white italic py-8">No saved filters yet. Create and save a filter to see it here.</p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 overflow-y-auto max-h-[300px] relative z-10">
+                  {savedFilters.map((savedFilter) => (
+                    <div
+                      key={savedFilter._id}
+                      className="p-4 border-2 border-[#ff9770] rounded-lg bg-[#333] hover:bg-[#444] transition-colors relative transform hover:scale-105 transition-all duration-300 overflow-hidden"
+                    >
+                      <div className="absolute inset-0 opacity-30 z-0" style={{
+                        background: "radial-gradient(circle at 30% 30%, rgba(255,112,166,0.4) 0%, transparent 70%), radial-gradient(circle at 70% 70%, rgba(233,255,112,0.4) 0%, transparent 70%)"
+                      }}></div>
+                      <button
+                        className="absolute top-2 right-2 w-7 h-7 flex items-center justify-center bg-[#ff70a6] text-white rounded-full z-10 hover:bg-[#ff5090] transition-colors"
+                        onClick={() => handleDeleteFilter(savedFilter._id)}
+                      >
+                        ×
+                      </button>
+                      <h3 className="font-bold mb-3 text-white pr-6 text-lg">{savedFilter.name}</h3>
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={() => handleLoadFilter(savedFilter)}
+                          className="text-sm px-3 py-1.5 bg-[#70d6ff] text-[#242424] font-bold rounded-lg border-2 border-[#242424] hover:bg-[#50c0ff] transition-colors"
+                        >
+                          LOAD
+                        </button>
+                        {/* Filter preview */}
+                        <div className="w-12 h-12 border-2 border-white rounded overflow-hidden">
+                          <svg width="48" height="48">
+                            <defs>
+                              <filter id={`filter-preview-${savedFilter._id}`}>
+                                <feColorMatrix type="matrix" values={(savedFilter.matrix || defaultMatrix).join(" ")} />
+                                {savedFilter.effects && (
+                                  <>
+                                    {savedFilter.effects.blur > 0 && <feGaussianBlur stdDeviation={savedFilter.effects.blur / 2} />}
+                                    {savedFilter.effects.contrast !== 100 && <feComponentTransfer>
+                                      <feFuncR type="linear" slope={savedFilter.effects.contrast / 100} intercept={-(0.5 * savedFilter.effects.contrast / 100) + 0.5} />
+                                      <feFuncG type="linear" slope={savedFilter.effects.contrast / 100} intercept={-(0.5 * savedFilter.effects.contrast / 100) + 0.5} />
+                                      <feFuncB type="linear" slope={savedFilter.effects.contrast / 100} intercept={-(0.5 * savedFilter.effects.contrast / 100) + 0.5} />
+                                    </feComponentTransfer>}
+                                  </>
+                                )}
+                              </filter>
+                            </defs>
+                            <rect
+                              width="48"
+                              height="48"
+                              fill="url('#gradientPreview')"
+                              style={{ filter: `url(#filter-preview-${savedFilter._id})` }}
+                            />
+                          </svg>
+                        </div>
+                        {/* Effects indicator */}
+                        {savedFilter.effects && (
+                          <div className="flex flex-wrap gap-1">
+                            {savedFilter.effects.blur > 0 && (
+                              <span className="inline-block px-1 py-0.5 bg-[#ff70a6] text-white text-[10px] rounded">B{savedFilter.effects.blur.toFixed(1)}</span>
+                            )}
+                            {savedFilter.effects.contrast !== 100 && (
+                              <span className="inline-block px-1 py-0.5 bg-[#ff9770] text-white text-[10px] rounded">C{savedFilter.effects.contrast}</span>
+                            )}
+                            {savedFilter.effects.hueRotate > 0 && (
+                              <span className="inline-block px-1 py-0.5 bg-[#ffd670] text-white text-[10px] rounded">H{savedFilter.effects.hueRotate}°</span>
+                            )}
+                            {savedFilter.effects.saturate !== 100 && (
+                              <span className="inline-block px-1 py-0.5 bg-[#e9ff70] text-black text-[10px] rounded">S{savedFilter.effects.saturate}</span>
+                            )}
+                            {savedFilter.effects.invert > 0 && (
+                              <span className="inline-block px-1 py-0.5 bg-[#70d6ff] text-white text-[10px] rounded">I{savedFilter.effects.invert}%</span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {/* Background patterns */}
+              <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none overflow-hidden">
+                <div className="absolute w-full h-full animate-pulse-slow" style={{ background: "radial-gradient(ellipse at 50% 50%, rgba(233,255,112,0.3) 0%, transparent 70%)" }}></div>
+                <div className="absolute w-full h-full" style={{ background: "repeating-linear-gradient(45deg, transparent 0px, transparent 10px, rgba(255,255,255,0.03) 10px, rgba(255,255,255,0.03) 20px)" }}></div>
+              </div>
+            </div>
+          </div>
+          {/* Right Column - Filter Details & Help */}
+          <div className="flex-1">
+            {/* Current Filter Details */}
+            <div className="bg-[#242424] p-6 rounded-2xl border-4 border-[#70d6ff] shadow-[0_0_20px_rgba(112,214,255,0.5)] relative overflow-hidden mb-8">
+              <h2 className="text-2xl font-bold mb-4 text-[#70d6ff]">CURRENT FILTER SPECS</h2>
+              <div className="p-4 bg-[#333] rounded-lg border-2 border-[#ffd670] mb-4">
+                <h3 className="text-[#ffd670] font-bold mb-2">Color Matrix Values:</h3>
+                <div className="grid grid-cols-5 gap-1 overflow-x-auto">
+                  {currentFilter.matrix && currentFilter.matrix.map((value, index) => (
+                    <div
+                      key={index}
+                      className="text-center p-1 rounded bg-[#444] text-white text-xs"
+                      style={{
+                        backgroundColor: value > 0 ? `rgba(255,114,166,${Math.min(Math.abs(value)/3, 1)})` :
+                                          value < 0 ? `rgba(112,214,255,${Math.min(Math.abs(value)/3, 1)})` : '#444'
+                      }}
+                    >
+                      {value.toFixed(1)}
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="p-4 bg-[#333] rounded-lg border-2 border-[#ffd670] mb-4">
+                <h3 className="text-[#ffd670] font-bold mb-2">Effect Settings:</h3>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="w-3 h-3 rounded-full bg-[#ff70a6]"></span>
+                    <span className="text-white">Blur: {blurAmount.toFixed(1)}px</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-3 h-3 rounded-full bg-[#ff9770]"></span>
+                    <span className="text-white">Contrast: {contrastAmount}%</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-3 h-3 rounded-full bg-[#ffd670]"></span>
+                    <span className="text-white">Hue Rotate: {hueRotate}°</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-3 h-3 rounded-full bg-[#e9ff70]"></span>
+                    <span className="text-white">Saturation: {saturation}%</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-3 h-3 rounded-full bg-[#70d6ff]"></span>
+                    <span className="text-white">Invert: {invert}%</span>
+                  </div>
+                </div>
+              </div>
+              {/* Background patterns */}
+              <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none overflow-hidden">
+                <div className="absolute w-full h-full" style={{ background: "radial-gradient(circle at 30% 30%, rgba(112,214,255,0.4) 0%, transparent 70%), radial-gradient(circle at 70% 70%, rgba(255,151,112,0.4) 0%, transparent 70%)" }}></div>
+                <div className="absolute w-full h-full" style={{ background: "repeating-linear-gradient(-45deg, transparent 0px, transparent 10px, rgba(255,255,255,0.03) 10px, rgba(255,255,255,0.03) 20px)" }}></div>
+              </div>
+            </div>
+            {/* Application info */}
+            <div className="bg-[#242424] p-6 rounded-2xl border-4 border-[#ff9770] shadow-[0_0_20px_rgba(255,151,112,0.5)] relative overflow-hidden">
+              <h2 className="text-2xl font-bold text-[#ff9770] mb-4 relative z-10">ABOUT THIS REALITY BENDER</h2>
+              <div className="relative z-10">
+                <p className="text-white italic mb-3">
+                  <em>This extreme color manipulation tool lets you create wild, psychedelic image transformations that go far beyond normal photo filters. Combine two independent color space controllers with additional CSS effects to bend visual reality to your will!</em>
+                </p>
+                <div className="bg-[#333] p-4 rounded-lg">
+                  <h3 className="text-[#ffd670] font-bold mb-2">How to Use:</h3>
+                  <ol className="text-white list-decimal ml-5 space-y-2">
+                    <li><strong>Upload an image</strong> - Use your own photo or the generated sample</li>
+                    <li><strong>Drag and drop</strong> - Drop any image file anywhere on the page to use it</li>
+                    <li><strong>Manipulate controllers</strong> - Drag the circles in both color spaces to blend different extreme color matrices</li>
+                    <li><strong>Adjust effects sliders</strong> - Fine-tune blur, contrast, hue rotation, saturation and inversion</li>
+                    <li><strong>Toggle view modes</strong> - Switch between side-by-side view, full filtered view, or comparison views</li>
+                    <li><strong>Try animation mode</strong> - Hit the "START COLOR TRIP" button to see wild color animations</li>
+                    <li><strong>Save your creations</strong> - Name and store your favorite reality-bending filters</li>
+                    <li><strong>Export as code</strong> - Copy SVG matrix or CSS filter code for use in your projects</li>
+                  </ol>
+                </div>
+              </div>
+              {/* Background patterns */}
+              <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none overflow-hidden">
+                <div className="absolute w-full h-full" style={{ background: "radial-gradient(circle at 70% 30%, rgba(255,151,112,0.4) 0%, transparent 70%), radial-gradient(circle at 30% 70%, rgba(255,151,112,0.4) 0%, transparent 70%)" }}></div>
+                <div className="absolute w-full h-full" style={{ background: "repeating-linear-gradient(135deg, transparent 0px, transparent 10px, rgba(255,255,255,0.03) 10px, rgba(255,255,255,0.03) 20px)" }}></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        {/* Gradient pattern for preview swatches */}
+        <svg width="0" height="0" className="absolute">
+          <defs>
+            <linearGradient id="gradientPreview" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stopColor="#ff70a6" />
+              <stop offset="20%" stopColor="#ff9770" />
+              <stop offset="40%" stopColor="#ffd670" />
+              <stop offset="60%" stopColor="#e9ff70" />
+              <stop offset="80%" stopColor="#70d6ff" />
+              <stop offset="100%" stopColor="#ff70a6" />
+            </linearGradient>
+          </defs>
+        </svg>
+      </div>
+      {/* Global animation and effects */}
+      <style jsx global>{`
+        @keyframes slide {
+          0% { transform: translateX(-50%); }
+          100% { transform: translateX(50%); }
+        }
+        @keyframes shine {
+          0% { background-position: 200% 0; }
+          100% { background-position: -200% 0; }
+        }
+        .animate-spin-slow {
+          animation: spin 20s linear infinite;
+        }
+        .animate-pulse-slow {
+          animation: pulse 4s ease-in-out infinite;
+        }
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        @keyframes pulse {
+          0%, 100% { opacity: 0.1; }
+          50% { opacity: 0.3; }
+        }
+        /* Custom slider styles */
+        input[type=range] {
+          -webkit-appearance: none;
+          height: 8px;
+          border-radius: 10px;
+        }
+        input[type=range]::-webkit-slider-thumb {
+          -webkit-appearance: none;
+          width: 20px;
+          height: 20px;
+          border-radius: 50%;
+          background: white;
+          border: 3px solid #242424;
+          cursor: pointer;
+          box-shadow: 0 0 10px rgba(255,255,255,0.5);
+        }
+        input[type=range]::-moz-range-thumb {
+          width: 20px;
+          height: 20px;
+          border-radius: 50%;
+          background: white;
+          border: 3px solid #242424;
+          cursor: pointer;
+          box-shadow: 0 0 10px rgba(255,255,255,0.5);
+        }
+      `}</style>
+    </div>
+  );
+};
+export default App
+      // prettier-ignore-end
+
+      const rootElement = document.getElementById("container");
+      ReactDOMClient.createRoot(rootElement).render(<App />);
+    </script>
+    <!--
+    Agents see LLMs docs:
+      Database: https://use-fireproof.com/llms-full.txt 
+      CallAI: https://use-fireproof.com/callai-llms.txt
+      ImgGen: https://use-fireproof.com/imggen-llms.txt
+    -->
+  </body>
+</html>
